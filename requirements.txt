@@ -1,7 +1,7 @@
 seaborn
 pandas
 streamlit
-openai
+openai==0.28
 numpy
 pillow  # Correct name for PIL
 matplotlib
