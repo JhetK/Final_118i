@@ -1,0 +1,12 @@
+seaborn
+pandas
+streamlit
+openai
+numpy
+pillow  # Correct name for PIL
+matplotlib
+folium
+streamlit-folium
+plotly
+requests
+easyocr
