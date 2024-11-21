@@ -243,7 +243,7 @@ except Exception as e:
 # Page title with logo
 col1, col2 = st.columns([1, 5])
 with col1:
-    st.image(logo_image, width=200)  # Display logo (larger for the main page)
+    st.image(logo_image, width=400)  # Display logo (larger for the main page)
 with col2:
     st.markdown("<h1 style='font-family:Poppins; color:#0077cc;'> Water Quality Management</h1>", unsafe_allow_html=True)
 
@@ -258,33 +258,28 @@ if selected_option == "Simple Feature":
     st.markdown("### Location Selection Using the Interactive Map")
     st.markdown("Click on the map to select your location. The ZIP code will be automatically detected.")
 
-    # Two-column layout for better organization
-    col1, col2 = st.columns([1, 1])
+    # Interactive map with ZIP Code input below
+    map_center = [37.7749, -122.4194]
+    folium_map = folium.Map(location=map_center, zoom_start=10)
+    folium.LatLngPopup().add_to(folium_map)
 
-    with col1:
-        # Interactive map with default size
-        map_center = [37.7749, -122.4194]
-        folium_map = folium.Map(location=map_center, zoom_start=10)
-        folium.LatLngPopup().add_to(folium_map)
-        map_data = st_folium(folium_map, width=800, height=600)  # Default size for the map
+    map_data = st_folium(folium_map, width=700, height=500)  # Map display
 
-        detected_zipcode = None
-        if map_data and map_data.get("last_clicked"):
-            last_clicked = map_data["last_clicked"]
-            if last_clicked:
-                lat, lon = last_clicked["lat"], last_clicked["lng"]
-                detected_zipcode = get_zipcode_from_coordinates(lat, lon)
-                st.success(f"Detected ZIP Code: {detected_zipcode}")
-        else:
-            st.info("Click on the map to select a location and detect a ZIP code.")
+    detected_zipcode = None
+    if map_data and map_data.get("last_clicked"):
+        last_clicked = map_data["last_clicked"]
+        if last_clicked:
+            lat, lon = last_clicked["lat"], last_clicked["lng"]
+            detected_zipcode = get_zipcode_from_coordinates(lat, lon)
+            st.success(f"Detected ZIP Code: {detected_zipcode}")
+    else:
+        st.info("Click on the map to select a location and detect a ZIP code.")
 
-    with col2:
-        # Input fields next to the map
-        confirmed_zipcode = st.text_input("Confirm or Update ZIP Code:", value=detected_zipcode or "")
+    # ZIP Code input field below the map
+    confirmed_zipcode = st.text_input("Confirm or Update ZIP Code:", value=detected_zipcode or "")
 
     # Manual Input
     if input_option == "Manual Input":
-        zipcode = st.text_input("Enter Zipcode:", value=confirmed_zipcode)
         date = st.date_input("Enter Date:", value=datetime.date.today())  # Default to today's date
         readings = {
             "pH": st.number_input("Enter pH level:", 0.0, 14.0, step=0.1),
@@ -296,7 +291,7 @@ if selected_option == "Simple Feature":
 
         if st.button("Submit"):
             # Create new entry with user data
-            new_entry = {"Zipcode": zipcode, "Date": date, **readings, "Notes": ""}
+            new_entry = {"Zipcode": detected_zipcode, "Date": date, **readings, "Notes": ""}
             data = pd.concat([data, pd.DataFrame([new_entry])], ignore_index=True)
             save_data(data)
             st.success("Data submitted successfully!")
@@ -340,7 +335,6 @@ if selected_option == "Simple Feature":
                 st.write(suggestions)
             except Exception as e:
                 st.error(f"Failed to generate suggestions: {e}")
-
 
 # Main Streamlit Application for Professional Feature
 elif selected_option == "Professional Feature":
@@ -415,7 +409,7 @@ elif selected_option == "Professional Feature":
                 save_data(data)
                 st.success(f"Entry {idx+1} deleted successfully!")
 
-    # Interactive Map with Markers
+   # Interactive Map with Markers
     st.subheader("Interactive Map with Markers")
 
     if not filtered_data.empty:
@@ -476,48 +470,22 @@ elif selected_option == "Professional Feature":
     else:
         st.warning("No data available to display on the map.")
 
-# Sub-feature: Comparison 
-st.markdown("### Compare Water Quality Across Zip Codes")
+# Compare Water Quality Across Zip Codes
+    st.markdown("### Compare Water Quality Across Zip Codes")
+    # Step 1: User selects zip codes and parameters
+    comparison_zipcodes = st.multiselect(
+        "Select Zip Codes to Compare",
+        options=data["Zipcode"].unique(),
+        help="Select at least two zip codes to compare water quality metrics."
+    )
 
-# Step 1: User selects zip codes and parameters
-comparison_zipcodes = st.multiselect(
-    "Select Zip Codes to Compare",
-    options=data["Zipcode"].unique(),
-    help="Select at least two zip codes to compare water quality metrics."
-)
+    parameters_to_compare = st.multiselect(
+        "Select Parameters for Comparison",
+        options=[param for param in REGULATORY_STANDARDS.keys()],
+        default=list(REGULATORY_STANDARDS.keys()),
+        help="Select the water quality parameters to include in the comparison."
+    )
 
-parameters_to_compare = st.multiselect(
-    "Select Parameters for Comparison",
-    options=[param for param in REGULATORY_STANDARDS.keys()],
-    default=list(REGULATORY_STANDARDS.keys()),
-    help="Select the water quality parameters to include in the comparison."
-)
-
-# Step 2: Add Heatmap Logic Around `compare_zipcodes`
-if st.button("Compare Zip Codes"):
-    compare_zipcodes(data, comparison_zipcodes, parameters_to_compare)
-
-    # Generate Heatmap (without modifying `compare_zipcodes` logic)
-    if len(comparison_zipcodes) >= 2:
-        # Filter data for the selected zip codes
-        filtered_data = data[data["Zipcode"].isin(comparison_zipcodes)]
-        if not filtered_data.empty:
-            # Aggregate data by Zipcode and Parameter
-            aggregated = filtered_data.groupby("Zipcode")[parameters_to_compare].mean()
-
-            # Display Heatmap
-            st.write("### Heatmap of Water Quality Metrics")
-            fig, ax = plt.subplots(figsize=(10, 6))
-            sns.heatmap(
-                aggregated,
-                annot=True,
-                fmt=".2f",
-                cmap="coolwarm",
-                cbar_kws={'label': 'Value'},
-                linewidths=0.5,
-            )
-            plt.title("Heatmap of Water Quality Metrics Across Selected Zip Codes", fontsize=14)
-            plt.xlabel("Parameter", fontsize=12)
-            plt.ylabel("Zip Code", fontsize=12)
-            plt.tight_layout()  # Adjust layout to avoid overlap
-            st.pyplot(fig)
+    # Step 2: Trigger comparison when the user clicks the button
+    if st.button("Compare Zip Codes"):
+        compare_zipcodes(data, comparison_zipcodes, parameters_to_compare)
