@@ -14,7 +14,7 @@ import os
 import datetime
 
 # Configuration
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+openai.api_key = os.environ("OPENAI_API_KEY")
 DATA_FILE = "water_quality_data.csv"
 REGULATORY_STANDARDS = {
     "pH": (6.5, 8.5),
